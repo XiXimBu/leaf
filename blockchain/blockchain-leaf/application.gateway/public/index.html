@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kiểm tra toàn vẹn dữ liệu - Blockchain Leaf</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>Blockchain Leaf — Kiểm tra toàn vẹn dữ liệu</h1>
+    <p class="sub">So sánh dữ liệu hiện tại trong database với bản ghi mới nhất trên blockchain. Nếu khác nhau → cảnh báo.</p>
+
+    <!-- ====== Check integrity ====== -->
+    <section class="card">
+      <h2>Kiểm tra toàn vẹn <span class="badge">SO SÁNH</span></h2>
+      <div class="row">
+        <div>
+          <label for="checkId">tree_id</label>
+          <input id="checkId" type="text" placeholder="VD: tree_001" />
+        </div>
+        <div></div>
+      </div>
+      <div style="margin-top:14px">
+        <label for="dbData">Dữ liệu hiện tại trong database (JSON)</label>
+        <textarea id="dbData" placeholder='{"tree_id":"tree_001","height":120,"temp":28.5}'></textarea>
+      </div>
+      <div class="actions">
+        <button id="btnCheck">Kiểm tra ngay</button>
+        <button class="ghost" id="btnLoadLatest">Lấy bản mới nhất từ blockchain → điền vào ô trên</button>
+      </div>
+      <div id="checkResult" class="result"></div>
+    </section>
+
+    <!-- ====== History viewer ====== -->
+    <section class="card">
+      <h2>Xem lịch sử trên blockchain</h2>
+      <div class="row">
+        <div>
+          <label for="histId">tree_id</label>
+          <input id="histId" type="text" placeholder="VD: tree_001" />
+        </div>
+        <div style="display:flex; align-items:flex-end">
+          <button id="btnHistory">Tải lịch sử</button>
+        </div>
+      </div>
+      <div id="historyBox" class="history"></div>
+      <div id="histResult" class="result"></div>
+    </section>
+
+    <!-- ====== Quick record (testing) ====== -->
+    <section class="card">
+      <h2>Ghi bản ghi mới (test) <span class="badge">DEV</span></h2>
+      <div>
+        <label for="recPayload">Payload JSON (phải có tree_id)</label>
+        <textarea id="recPayload" placeholder='{"tree_id":"tree_001","height":120,"temp":28.5,"timestamp":"2026-05-25T10:00:00Z"}'></textarea>
+      </div>
+      <div class="actions">
+        <button class="green" id="btnRecord">Ghi lên blockchain</button>
+      </div>
+      <div id="recResult" class="result"></div>
+    </section>
+  </div>
+
+  <!-- ====== ALARM OVERLAY ====== -->
+  <div class="alarm" id="alarm" role="alert" aria-live="assertive">
+    <div class="siren">🚨</div>
+    <h1 class="big">DỮ LIỆU ĐÃ BỊ CHỈNH SỬA Ở DATABASE.<br/>KHÔNG ĐẢM BẢO TÍNH TOÀN VẸN!</h1>
+    <p class="sub-warn">Bản ghi hiện tại không khớp với bản ghi mới nhất được lưu trên blockchain.</p>
+    <button class="close-btn" id="btnCloseAlarm">Đã hiểu, tắt cảnh báo</button>
+  </div>
+
+  <script src="scripts.js" defer></script>
+</body>
+</html>

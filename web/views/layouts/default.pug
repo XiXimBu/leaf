@@ -1,0 +1,147 @@
+doctype html
+html.dark(lang="vi")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title #{pageTitle ? pageTitle : 'AI Plant Monitoring System Dashboard'}
+    
+    //- 1. Fonts & Icons
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@500;600&display=swap" rel="stylesheet")
+    
+    //- 2. Tailwind Library
+    script(src="https://cdn.tailwindcss.com?plugins=forms,container-queries")
+    script#tailwind-config.
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              background: "#0b1326",
+              surface: "#0f1729",
+              "surface-variant": "#2d3449",
+              "on-surface": "#e8edf8",
+              error: "#ff8a7a",
+              "on-error": "#1a0a08",
+              "on-surface-variant": "#9aa8bc",
+              "surface-container-lowest": "#060e20",
+              secondary: "#3dd68c",
+              "inverse-surface": "#dae2fd",
+              "on-background": "#dae2fd",
+              "surface-container-low": "#131b2e",
+              "surface-container-highest": "#2a3348",
+              "outline-variant": "#334155",
+              "surface-container": "#171f33",
+              "surface-container-high": "#1e293b",
+              primary: "#4edea3",
+              "on-primary": "#042818",
+              "primary-container": "#163d2f",
+              "on-primary-container": "#b8f5d4",
+              tertiary: "#6eb5ff",
+              outline: "#475569"
+            },
+            borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+            fontFamily: {
+              "mono-data": ["Geist", "monospace"],
+              "body-sm": ["Inter", "sans-serif"],
+              "body-md": ["Inter", "sans-serif"],
+              "label-md": ["Inter", "sans-serif"],
+              "label-sm": ["Inter", "sans-serif"],
+              "headline-md": ["Inter", "sans-serif"],
+              "headline-lg": ["Inter", "sans-serif"],
+              "title-sm": ["Inter", "sans-serif"],
+              "display-lg-mobile": ["Inter", "sans-serif"]
+            },
+            spacing: { "stack-md": "1rem", "stack-lg": "1.5rem" }
+          }
+        }
+      }
+      
+    //- 3. Custom CSS
+    style.
+      body { background-color: theme('colors.background'); color: theme('colors.on-surface'); min-height: 100vh; }
+      .base-card { background-color: theme('colors.surface-container-low'); border: 1px solid theme('colors.outline-variant'); border-radius: theme('borderRadius.xl'); box-shadow: 0 1px 3px 0 rgba(0,0,0,0.25); }
+      .chart-grid line { stroke: theme('colors.outline-variant'); stroke-dasharray: 4; opacity: 0.5; }
+      .icon-fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .iot-tile-soil { border-color: rgba(78, 222, 163, 0.35); background: linear-gradient(145deg, rgba(22, 61, 47, 0.5), rgba(15, 23, 41, 0.9)); }
+      .iot-tile-temp { border-color: rgba(251, 146, 60, 0.35); background: linear-gradient(145deg, rgba(67, 40, 12, 0.45), rgba(15, 23, 41, 0.9)); }
+      .iot-tile-ph { border-color: rgba(167, 139, 250, 0.35); background: linear-gradient(145deg, rgba(55, 38, 95, 0.45), rgba(15, 23, 41, 0.9)); }
+      .iot-tile-pump { border-color: rgba(61, 214, 140, 0.4); background: linear-gradient(145deg, rgba(22, 61, 47, 0.55), rgba(15, 23, 41, 0.9)); }
+    link(rel="stylesheet", href="/css/style.css")
+    
+    block head
+
+  body(class="flex overflow-hidden antialiased text-on-surface bg-background")
+    
+    //- SideNavBar
+    nav#sidebar(class="fixed left-0 top-0 h-screen w-[280px] border-r border-outline-variant bg-surface-container flex flex-col py-6 z-50 hidden md:flex transition-all duration-300 overflow-hidden")
+      div(class="px-6 mb-8 flex items-center gap-3 whitespace-nowrap")
+        div(class="min-w-[32px] w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30")
+          span(class="material-symbols-outlined text-primary text-xl") psychology
+        div.sidebar-text(class="transition-opacity duration-200")
+          h1(class="font-title-sm text-[16px] leading-tight font-semibold text-on-surface tracking-tight") EcoSense AI
+          p(class="font-body-sm text-[12px] text-on-surface-variant") Precision Agriculture
+      div(class="flex-1 overflow-y-auto px-3 flex flex-col gap-1")
+        a(class="flex items-center gap-3 px-3 py-2 rounded-md bg-surface-container-high text-on-surface font-medium transition-colors whitespace-nowrap" href="/")
+          span(class="material-symbols-outlined text-[20px] min-w-[20px]" style="font-variation-settings: 'FILL' 1;") dashboard
+          span.sidebar-text(class="font-body-sm transition-opacity duration-200") Dashboard
+
+    //- Main Content Area
+    main#mainContent(class="flex-1 ml-0 md:ml-[280px] h-screen overflow-y-auto relative flex flex-col bg-background transition-all duration-300")
+      //- TopAppBar
+      header(class="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur-sm flex items-center justify-between px-6 h-16")
+        div(class="flex items-center gap-4 flex-1")
+          button#toggleSidebarBtn(class="text-on-surface-variant p-2 -ml-2 hover:bg-surface-variant rounded-full transition-colors")
+            span(class="material-symbols-outlined") menu
+          h2(class="text-lg font-semibold text-on-surface hidden md:block") AI Plant Monitoring
+        div(class="flex items-center gap-6")
+          div(class="flex items-center gap-2 border-l border-outline-variant pl-6")
+            div(class="w-2 h-2 rounded-full bg-primary")
+            span(class="font-label-caps text-on-surface") SYSTEM ONLINE
+
+      block main
+
+    //- JS Logic
+    script.
+      document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const toggleBtn = document.getElementById('toggleSidebarBtn');
+        const sidebarTexts = document.querySelectorAll('.sidebar-text');
+        
+        let isCollapsed = false;
+        
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            
+            // Kích hoạt liên tục sự kiện resize trong 300ms (thời gian transition) để Chart.js tự động vẽ lại kích thước
+            let start = Date.now();
+            let timer = setInterval(() => {
+                window.dispatchEvent(new Event('resize'));
+                if (Date.now() - start > 350) clearInterval(timer);
+            }, 16);
+
+            if(isCollapsed) {
+              sidebar.classList.remove('w-[280px]');
+              sidebar.classList.add('w-[80px]');
+              mainContent.classList.remove('md:ml-[280px]');
+              mainContent.classList.add('md:ml-[80px]');
+              sidebarTexts.forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.style.display = 'none', 200);
+              });
+            } else {
+              sidebar.classList.remove('w-[80px]');
+              sidebar.classList.add('w-[280px]');
+              mainContent.classList.remove('md:ml-[80px]');
+              mainContent.classList.add('md:ml-[280px]');
+              sidebarTexts.forEach(el => {
+                el.style.display = 'block';
+                setTimeout(() => el.style.opacity = '1', 10);
+              });
+            }
+          });
+        }
+      });
+    block script

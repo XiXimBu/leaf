@@ -1,0 +1,19 @@
+{
+    // Visit https://aka.ms/tsconfig to read more about this file
+    "compilerOptions": {
+      // File Layout
+      // "rootDir": "./src",
+      "outDir": "dist",
+      "esModuleInterop": true, // import x from "y" instead of import * as x from "y"
+  
+      "module": "nodenext",
+      "moduleResolution": "NodeNext",
+      "target": "esnext",
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "types": ["node"],
+      "removeComments": true
+      
+    }
+  }
+  
