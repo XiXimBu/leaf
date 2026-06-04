@@ -1,20 +1,18 @@
+<div align="center">
+  <h3>🎓 Faculty of Information Technology (DaiNam University)</h3>
+  <h2>BLOCKCHAIN TECHNOLOGY</h2>
+  <table>
+    <tr>
+      <td align="center"><img src="docs/poster/aiotlab_logo.png" width="200" /></td>
+      <td align="center"><img src="docs/poster/fitdnu_logo.png" width="200" /></td>
+      <td align="center"><img src="docs/poster/dnu_logo.png" width="200" /></td>
+    </tr>
+  </table>
+</div>
+
 # VisionComputer
 
-**Hệ thống giám sát cây trồng thông minh** kết hợp **cảm biến IoT (ESP32)**, **AI vision (YOLO)**, **backend Node.js + MongoDB**, và **sổ cái phân tán Hyperledger Fabric** để lưu vết dữ liệu **bất biến**, phục vụ báo cáo / poster / demo.
-
-> **Gợi ý poster:** Chèn ảnh chụp màn hình vào thư mục [`docs/poster/`](docs/poster/). README dùng đường dẫn tương đối — thay file PNG/JPG cùng tên là hiển thị được trên GitHub hoặc khi xuất PDF.
-
----
-
-## Mục lục
-
-- [Tổng quan hệ thống](#tổng-quan-hệ-thống)
-- [Phần 1 — IoT, AI Vision & Web](#phần-1--iot-ai-vision--web)
-- [Phần 2 — Blockchain (Hyperledger Fabric)](#phần-2--blockchain-hyperledger-fabric)
-- [Tính bất biến & demo toàn vẹn dữ liệu](#tính-bất-biến--demo-toàn-vẹn-dữ-liệu)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-
----
+**Hệ thống giám sát cây trồng thông minh** kết hợp **cảm biến IoT (ESP32)**, **AI vision (YOLO)**, **backend Node.js + MongoDB**, và **sổ cái phân tán Hyperledger Fabric** để lưu vết dữ liệu **bất biến**.
 
 ## Tổng quan hệ thống
 
@@ -97,15 +95,6 @@ flowchart LR
 
 **Bơm tự động (hysteresis):** bật khi đất **&lt; 25%**; khi đang bơm chỉ tắt khi **≥ 60%**. Admin UI và giọng nói ghi đè lên logic này.
 
-### Ảnh minh họa Phần 1
-
-| File gợi ý | Nội dung chụp |
-|-------------|----------------|
-| `docs/poster/giao-dien-dashboard.png` | Trang chủ: video YOLO, biểu đồ, ô đất/bơm/AI |
-| `docs/poster/esp32-cam-bien.png` | Board ESP32 + cảm biến đất / mạch pH |
-| `docs/poster/yolo-tracking.png` | Khung overlay lá (demo hoặc live) |
-
-![Giao diện dashboard](docs/poster/giao-dien-dashboard.png)
 
 ---
 
@@ -226,8 +215,7 @@ Mở **`blockchain/blockchain-leaf/application.gateway/public/index.html`** (qua
 
 ![SHA-256 Hash](docs/poster/blockchain-hash.png)
 
-**Caption gợi ý cho poster:**  
-*“Dữ liệu trên MongoDB có thể thay đổi; bản ghi trên Hyperledger Fabric giữ nguyên lịch sử — hệ thống phát hiện khi DB không còn khớp chuỗi.”*
+
 
 ---
 
