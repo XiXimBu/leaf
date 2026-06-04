@@ -8,13 +8,13 @@
 
 ## Mục lục
 
-1. [Tổng quan hệ thống](#tổng-quan-hệ-thống)
-2. [Phần 1 — IoT, AI Vision & Web](#phần-1--iot-ai-vision--web)
-3. [Phần 2 — Blockchain (Hyperledger Fabric)](#phần-2--blockchain-hyperledger-fabric)
-4. [Tính bất biến & demo toàn vẹn dữ liệu](#tính-bất-biến--demo-toàn-vẹn-dữ-liệu)
-5. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-6. [Chạy nhanh (local)](#chạy-nhanh-local)
-7. [Ảnh demo cho poster](#ảnh-demo-cho-poster)
+- [Tổng quan hệ thống](#tổng-quan-hệ-thống)
+- [Phần 1 — IoT, AI Vision & Web](#phần-1--iot-ai-vision--web)
+- [Phần 2 — Blockchain (Hyperledger Fabric)](#phần-2--blockchain-hyperledger-fabric)
+- [Tính bất biến & demo toàn vẹn dữ liệu](#tính-bất-biến--demo-toàn-vẹn-dữ-liệu)
+- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
+- [Chạy nhanh (local)](#chạy-nhanh-local)
+- [Ảnh demo cho poster](#ảnh-demo-cho-poster)
 
 ---
 
@@ -52,15 +52,13 @@ VisionComputer theo dõi **một cây (tree_id)** qua hai luồng song song:
                                               lịch sử · hash · cảnh báo   Ledger bất biến
 ```
 
-![Kiến trúc tổng thể — thay bằng ảnh poster của bạn](docs/poster/01-kien-truc-tong-the.png)
 
-*Hình 1 — Đặt file `docs/poster/01-kien-truc-tong-the.png` (sơ đồ hoặc collage kiến trúc).*
 
 ---
 
 ## Phần 1 — IoT, AI Vision & Web
 
-### 1.1 Thành phần
+### Thành phần
 
 | Thành phần | Đường dẫn | Vai trò |
 |------------|-----------|---------|
@@ -69,7 +67,7 @@ VisionComputer theo dõi **một cây (tree_id)** qua hai luồng song song:
 | **AI Engine** | `visioncomputer/video_tracking_stream.py` | YOLO segment lá → % sức khỏe |
 | **Frontend** | `web/views/`, `web/public/javascript/script.js` | Video overlay, chart, admin bơm |
 
-### 1.2 Sơ đồ luồng (Phần 1)
+### Sơ đồ luồng (Phần 1)
 
 ```mermaid
 flowchart LR
@@ -101,19 +99,15 @@ flowchart LR
 
 **Bơm tự động (hysteresis):** bật khi đất **&lt; 25%**; khi đang bơm chỉ tắt khi **≥ 60%**. Admin UI và giọng nói ghi đè lên logic này.
 
-### 1.3 Ảnh minh họa Phần 1
+### Ảnh minh họa Phần 1
 
-| # | File gợi ý | Nội dung chụp |
-|---|-------------|----------------|
-| 2 | `docs/poster/02-giao-dien-dashboard.png` | Trang chủ: video YOLO, biểu đồ, ô đất/bơm/AI |
-| 3 | `docs/poster/03-esp32-cam-bien.png` | Board ESP32 + cảm biến đất / mạch pH |
-| 4 | `docs/poster/04-yolo-tracking.png` | Khung overlay lá (demo hoặc live) |
+| File gợi ý | Nội dung chụp |
+|-------------|----------------|
+| `docs/poster/giao-dien-dashboard.png` | Trang chủ: video YOLO, biểu đồ, ô đất/bơm/AI |
+| `docs/poster/esp32-cam-bien.png` | Board ESP32 + cảm biến đất / mạch pH |
+| `docs/poster/yolo-tracking.png` | Khung overlay lá (demo hoặc live) |
 
-![Giao diện dashboard](docs/poster/02-giao-dien-dashboard.png)
-
-![ESP32 & cảm biến](docs/poster/03-esp32-cam-bien.png)
-
-![YOLO tracking](docs/poster/04-yolo-tracking.png)
+![Giao diện dashboard](docs/poster/giao-dien-dashboard.png)
 
 ---
 
@@ -134,7 +128,7 @@ blockchain/blockchain-leaf/
 └── test-network/                 # (sau khi khởi tạo) crypto, peer, orderer
 ```
 
-### 2.1 Vai trò từng lớp
+### Vai trò từng lớp
 
 | Lớp | File | Chức năng |
 |-----|------|-----------|
@@ -143,7 +137,7 @@ blockchain/blockchain-leaf/
 | **Web Backend** | `web/services/home.services.ts` | Sau mỗi lần lưu MongoDB → `POST http://localhost:8080/api/blockchain/record` |
 | **UI Blockchain** | `application.gateway/public/` | So sánh DB vs chain, xem timeline, SHA-256 |
 
-### 2.2 Sơ đồ luồng (Phần 2)
+### Sơ đồ luồng (Phần 2)
 
 ```mermaid
 sequenceDiagram
@@ -170,7 +164,7 @@ sequenceDiagram
   GW-->>UI: JSON timeline
 ```
 
-### 2.3 API Gateway (port **8080**)
+### API Gateway (port **8080**)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|--------|
@@ -182,7 +176,7 @@ sequenceDiagram
 - **`CreateRecord(ctx, id, recordJsonString)`** — parse JSON, `putState(id, payload)`. Cùng `id` ghi nhiều lần → Fabric lưu **chuỗi phiên bản** trên Ledger (không ghi đè im lặng lịch sử).
 - **`GetHistory(ctx, id)`** — `getHistoryForKey(id)` → mỗi mục gồm `txid`, `block_timestamp`, `data` (payload gốc).
 
-### 2.4 Đồng bộ với MongoDB
+### Đồng bộ với MongoDB
 
 Khi `saveTreeSnapshot` hoặc `saveDemoVideoTreeSnapshot` thành công:
 
@@ -195,7 +189,7 @@ Payload gần với document Mongo (không gửi `__v`, `createdAt` từ phía c
 
 **Lưu ý poster:** MongoDB = **có thể chỉnh sửa** (vận hành). Blockchain = **bằng chứng tham chiếu** — nếu DB bị sửa tay, công cụ so sánh sẽ báo lệch.
 
-![Luồng blockchain — sơ đồ hoặc screenshot Fabric Explorer](docs/poster/05-blockchain-luong.png)
+
 
 ---
 
@@ -213,24 +207,26 @@ Payload gần với document Mongo (không gửi `__v`, `createdAt` từ phía c
 
 Mở **`blockchain/blockchain-leaf/application.gateway/public/index.html`** (qua Gateway đang chạy):
 
-1. **Kiểm tra toàn vẹn** — dán JSON “giả lập DB”, bấm *Kiểm tra ngay* → khớp / không khớp với chain.
-2. **Xem lịch sử** — nhập `TREE_001` → *Tải lịch sử* → thấy nhiều block/tx theo thời gian (**bằng chứng bất biến**).
-3. **SHA-256** — tính hash payload, ghi chain, đối chiếu lại với lịch sử.
+- **Kiểm tra toàn vẹn** — dán JSON “giả lập DB”, bấm *Kiểm tra ngay* → khớp / không khớp với chain.
+- **Xem lịch sử** — nhập `TREE_001` → *Tải lịch sử* → thấy nhiều block/tx theo thời gian (**bằng chứng bất biến**).
+- **SHA-256** — tính hash payload, ghi chain, đối chiếu lại với lịch sử.
 
 ### Kịch bản chụp ảnh thể hiện bất biến
 
 | Bước | Việc làm | Ảnh poster |
 |------|----------|------------|
-| A | Chạy hệ thống, để vài snapshot lưu Mongo + chain | `06-blockchain-lich-su.png` — timeline nhiều `txid` |
-| B | *Lấy bản mới nhất từ blockchain* → điền vào ô DB → *Kiểm tra* → **Khớp** | `07-blockchain-khop.png` |
-| C | Sửa tay một field trong ô DB (vd. `soil_moisture`) → *Kiểm tra* → **Cảnh báo đỏ** | `08-blockchain-canh-bao.png` — overlay “DỮ LIỆU ĐÃ BỊ CHỈNH SỬA…” |
-| D | (Tuỳ chọn) Tính SHA-256, ghi và đối chiếu | `09-blockchain-hash.png` |
+| A | Chạy hệ thống, để vài snapshot lưu Mongo + chain | `blockchain-lich-su.png` — timeline nhiều `txid` |
+| B | *Lấy bản mới nhất từ blockchain* → điền vào ô DB → *Kiểm tra* → **Khớp** | `blockchain-khop.png` |
+| C | Sửa tay một field trong ô DB (vd. `soil_moisture`) → *Kiểm tra* → **Cảnh báo đỏ** | `blockchain-canh-bao.png` — overlay “DỮ LIỆU ĐÃ BỊ CHỈNH SỬA…” |
+| D | (Tuỳ chọn) Tính SHA-256, ghi và đối chiếu | `blockchain-hash.png` |
 
-![Lịch sử blockchain — nhiều transaction cho cùng tree_id](docs/poster/06-blockchain-lich-su.png)
+![Lịch sử blockchain — nhiều transaction cho cùng tree_id](docs/poster/blockchain-lich-su.png)
 
-![So sánh khớp — DB trùng chain](docs/poster/07-blockchain-khop.png)
+![So sánh khớp — DB trùng chain](docs/poster/blockchain-khop.png)
 
-![Cảnh báo toàn vẹn — DB khác chain (bất biến làm lộ chỉnh sửa)](docs/poster/08-blockchain-canh-bao.png)
+![Cảnh báo toàn vẹn — DB khác chain (bất biến làm lộ chỉnh sửa)](docs/poster/blockchain-canh-bao.png)
+
+![SHA-256 Hash](docs/poster/blockchain-hash.png)
 
 **Caption gợi ý cho poster:**  
 *“Dữ liệu trên MongoDB có thể thay đổi; bản ghi trên Hyperledger Fabric giữ nguyên lịch sử — hệ thống phát hiện khi DB không còn khớp chuỗi.”*
@@ -294,22 +290,22 @@ Copy ảnh chụp màn hình vào **`docs/poster/`** với tên sau (hoặc sử
 
 | File | Mục đích poster |
 |------|-----------------|
-| `01-kien-truc-tong-the.png` | Sơ đồ 2 phần (có thể vẽ từ slide) |
-| `02-giao-dien-dashboard.png` | UI chính VisionComputer |
-| `03-esp32-cam-bien.png` | Phần cứng IoT |
-| `04-yolo-tracking.png` | AI vision |
-| `05-blockchain-luong.png` | Sơ đồ / màn Gateway |
-| `06-blockchain-lich-su.png` | **Bất biến** — timeline `GetHistory` |
-| `07-blockchain-khop.png` | Toàn vẹn — kiểm tra **khớp** |
-| `08-blockchain-canh-bao.png` | Toàn vẹn — **cảnh báo** khi sửa DB |
-| `09-blockchain-hash.png` | SHA-256 (tuỳ chọn) |
+| `kien-truc-tong-the.png` | Sơ đồ 2 phần (có thể vẽ từ slide) |
+| `giao-dien-dashboard.png` | UI chính VisionComputer |
+| `esp32-cam-bien.png` | Phần cứng IoT |
+| `yolo-tracking.png` | AI vision |
+| `blockchain-luong.png` | Sơ đồ / màn Gateway |
+| `blockchain-lich-su.png` | **Bất biến** — timeline `GetHistory` |
+| `blockchain-khop.png` | Toàn vẹn — kiểm tra **khớp** |
+| `blockchain-canh-bao.png` | Toàn vẹn — **cảnh báo** khi sửa DB |
+| `blockchain-hash.png` | SHA-256 (tuỳ chọn) |
 
 **Thứ tự trình bày poster gợi ý:**
 
-1. Tiêu đề + Hình 1 (kiến trúc)  
-2. **Phần 1** — Hình 2–4 + sơ đồ luồng ngắn (IoT + AI)  
-3. **Phần 2** — Hình 5–8 + giải thích Ledger / immutability  
-4. Kết luận — MongoDB vận hành + Blockchain chứng minh  
+- Tiêu đề + Hình (kiến trúc)  
+- **Phần 1** — Hình + sơ đồ luồng ngắn (IoT + AI)  
+- **Phần 2** — Hình + giải thích Ledger / immutability  
+- Kết luận — MongoDB vận hành + Blockchain chứng minh  
 
 ---
 
