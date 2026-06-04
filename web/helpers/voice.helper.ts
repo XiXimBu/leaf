@@ -175,9 +175,6 @@ const actionFromWit = (wit: WitMessageResponse): VoiceAction | null => {
     return null;
   }
 
-  console.log("[DEBUG WIT.AI] Intent:", intent.name, "confidence:", intent.confidence);
-  console.log("[DEBUG WIT.AI] Entities:", JSON.stringify(entities, null, 2));
-
   if (intent.name === "dieu_khien_thiet_bi") {
     const device = firstEntity(entities, "thiet_bi");
     const state = firstEntity(entities, "trang_thai");
@@ -231,34 +228,25 @@ export const formatSensorReply = (
 
 /** message đã qua parseVoiceCommandPostBody. */
 export const resolveVoiceAction = async (message: string): Promise<VoiceAction> => {
-  console.log("[DEBUG VOICE] resolveVoiceAction message:", JSON.stringify(message));
-
   if (witClient) {
     try {
-      console.log("[DEBUG WIT.AI] Gửi lên Wit:", message);
       const wit = await witClient.message(message, {});
-      console.log("[DEBUG WIT.AI] Phản hồi đầy đủ:", JSON.stringify(wit, null, 2));
-
       const fromWit = actionFromWit(wit);
       if (fromWit) {
-        console.log("[DEBUG WIT.AI] actionFromWit →", fromWit.type);
         return fromWit;
       }
-      console.log("[DEBUG WIT.AI] actionFromWit = null → thử parser local");
     } catch (err) {
-      console.error("[Voice] Wit.ai error:", err);
     }
   } else {
-    console.warn("[Voice] WIT_ACCESS_TOKEN chưa cấu hình — dùng parser local.");
+    
   }
 
   const local = parseVoiceLocal(message);
   if (local) {
-    console.log("[DEBUG VOICE] parseVoiceLocal →", local.type);
     return local;
   }
 
-  console.log("[DEBUG VOICE] Không hiểu lệnh (Wit + local đều null)");
+
   return {
     type: "unknown",
     reply:

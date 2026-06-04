@@ -10,13 +10,17 @@ import {
   parseEsp32SensorsPostBody,
   parsePostDemoBody,
   parseRealtimeAiPostBody,
+  parseAdminPumpPostBody,
   parseVoicePumpPostBody,
   type PumpStatus,
 } from "../validations/home.validate";
 import {
-  applyVoicePumpOverride,
+  ADMIN_PUMP_REASON,
+  applyManualPumpOverrides,
   decidePumpCommand,
+  DEFAULT_PUMP_ADMIN_KEY,
   ESP32_DRY_THRESHOLD_PERCENT,
+  ESP32_WET_THRESHOLD_PERCENT,
   pumpCommandForEsp32WithDemoPolicy,
   VOICE_PUMP_REASON,
   type PumpCommandResult,
@@ -98,11 +102,44 @@ let lastRealtimeVisionDbAt = 0;
 let pendingAi: PendingAi | null = null;
 let pendingIot: PendingIot | null = null;
 let lastConsolidatedSaveAt = 0; // 0 = chưa lưu → POST đầu tiên trigger save ngay.
-/** Chỉ wit.ai / lệnh giọng nói — bỏ qua logic đất cho đến khi DELETE /api/iot/pump-override. */
+/** Giọng nói — ghi đè logic đất cho đến khi DELETE /api/iot/pump-override. */
 let voicePumpOverride: VoicePumpOverride = null;
+/** UI admin (khóa server) — ưu tiên cao hơn giọng nói và đất. */
+let adminPumpOverride: VoicePumpOverride = null;
 
-const applyVoiceOverrideIfAny = (pump: PumpCommandResult): PumpCommandResult =>
-  applyVoicePumpOverride(pump, voicePumpOverride);
+const pumpAdminKeyFromEnv = (): string => {
+  const k = process.env.PUMP_ADMIN_KEY;
+  if (typeof k === "string" && k.trim().length > 0) return k.trim();
+  return DEFAULT_PUMP_ADMIN_KEY;
+};
+
+const isPumpAdminAuthorized = (req: Request): boolean => {
+  const expected = pumpAdminKeyFromEnv();
+  const headerKey = req.get("x-pump-admin-key");
+  const bodyKey =
+    req.body && typeof req.body === "object"
+      ? String((req.body as { admin_key?: unknown }).admin_key ?? "").trim()
+      : "";
+  const given = (headerKey || bodyKey || "").trim();
+  return given.length > 0 && given === expected;
+};
+
+const applyAllPumpOverrides = (pump: PumpCommandResult): PumpCommandResult =>
+  applyManualPumpOverrides(pump, adminPumpOverride, voicePumpOverride);
+
+const setManualPumpOnPendingIot = (cmd: PumpStatus): void => {
+  const now = Date.now();
+  if (pendingIot) {
+    pendingIot = { ...pendingIot, pumpStatus: cmd, updatedAt: now };
+  } else {
+    pendingIot = {
+      soilMoisture: 50,
+      temperature: 28,
+      pumpStatus: cmd,
+      updatedAt: now,
+    };
+  }
+};
 
 const stopPythonStreamJob = (): void => {
   if (activeRealtimeJob) {
@@ -352,11 +389,11 @@ const startRealtimeVideoStream = async (req: Request, res: Response): Promise<vo
   const sendEveryFrames = Number.isFinite(sendEveryFramesRaw) && sendEveryFramesRaw > 0 ? Math.round(sendEveryFramesRaw) : 5;
   const startHour = parseBodyHour(req.body?.startHour, 23);
   const endHour = parseBodyHour(req.body?.endHour, 11);
-  const pythonScript = path.resolve(repoRootDir, "cv.engine", "video_tracking_stream.py");
+  const pythonScript = path.resolve(repoRootDir, "visioncomputer", "video_tracking_stream.py");
   const demoVideoPath = path.resolve(webRootDir, "public", "videos", "final(1).mp4");
   const videoPath = mode === "realtime" ? cameraUrl : demoVideoPath;
   const modelPath = path.resolve(repoRootDir, "models", "best.pt");
-  const venvPython = path.resolve(repoRootDir, "cv.engine", "Scripts", "python.exe");
+  const venvPython = path.resolve(repoRootDir, "visioncomputer", "venv", "Scripts", "python.exe");
   const pythonCmd = process.env.PYTHON_CMD || (fs.existsSync(venvPython) ? venvPython : "py");
   const demoDataUrl = `${req.protocol}://${req.get("host")}/home/api/demo`;
   const realtimeVisionUrl = `${req.protocol}://${req.get("host")}/home/api/realtime`;
@@ -434,17 +471,13 @@ const stopRealtimeVideoStream = async (_req: Request, res: Response): Promise<vo
 /** Ghi đè bơm theo giọng nói (ESP32 nhận lệnh ở POST /api/sensors tiếp theo). */
 const applyVoicePumpCommand = (cmd: PumpStatus): void => {
   voicePumpOverride = cmd;
-  const now = Date.now();
-  if (pendingIot) {
-    pendingIot = { ...pendingIot, pumpStatus: cmd, updatedAt: now };
-  } else {
-    pendingIot = {
-      soilMoisture: 50,
-      temperature: 28,
-      pumpStatus: cmd,
-      updatedAt: now,
-    };
-  }
+  setManualPumpOnPendingIot(cmd);
+};
+
+/** Ghi đè bơm từ UI admin — thắng giọng nói và logic đất. */
+const applyAdminPumpCommand = (cmd: PumpStatus): void => {
+  adminPumpOverride = cmd;
+  setManualPumpOnPendingIot(cmd);
 };
 
 /** Điều khiển bơm qua giọng nói (wit.ai) — ghi đè hoàn toàn logic đất cho đến khi bấm Tự động. */
@@ -461,22 +494,51 @@ const postIotPumpCommand = async (req: Request, res: Response): Promise<void> =>
     pump_command: cmd,
     pump_reason: VOICE_PUMP_REASON,
     voice_pump_override: voicePumpOverride,
+    admin_pump_override: adminPumpOverride,
     message: cmd === "ON" ? "Giọng nói: bật bơm (ESP32)." : "Giọng nói: tắt bơm (ESP32).",
   });
 };
 
-/** Trả bơm về logic đất + AI (xóa override giọng nói). */
+/** Điều khiển bơm từ UI admin — header X-Pump-Admin-Key (mặc định vision-admin). */
+const postAdminIotPumpCommand = async (req: Request, res: Response): Promise<void> => {
+  if (!isPumpAdminAuthorized(req)) {
+    res.status(403).json({
+      success: false,
+      message: "Khóa admin không hợp lệ (header X-Pump-Admin-Key).",
+    });
+    return;
+  }
+  const parsed = parseAdminPumpPostBody(req.body);
+  if (parsed.ok === false) {
+    res.status(parsed.status).json(parsed.payload);
+    return;
+  }
+  const { command: cmd } = parsed.data;
+  applyAdminPumpCommand(cmd);
+  res.status(200).json({
+    success: true,
+    pump_command: cmd,
+    pump_reason: ADMIN_PUMP_REASON,
+    admin_pump_override: adminPumpOverride,
+    voice_pump_override: voicePumpOverride,
+    message: cmd === "ON" ? "Admin: bật bơm (ESP32)." : "Admin: tắt bơm (ESP32).",
+  });
+};
+
+/** Trả bơm về logic đất (xóa override admin + giọng nói). */
 const clearIotPumpOverride = async (_req: Request, res: Response): Promise<void> => {
   voicePumpOverride = null;
+  adminPumpOverride = null;
   let pumpAfterAuto: PumpCommandResult = { cmd: "OFF", reason: "no_iot" };
   if (pendingIot) {
-    pumpAfterAuto = decidePumpCommand(pendingIot.soilMoisture);
+    pumpAfterAuto = decidePumpCommand(pendingIot.soilMoisture, pendingIot.pumpStatus);
     pendingIot = { ...pendingIot, pumpStatus: pumpAfterAuto.cmd, updatedAt: Date.now() };
   }
   res.status(200).json({
     success: true,
-    message: "Bơm trở lại chế độ tự động (đất + AI).",
+    message: "Bơm trở lại chế độ tự động (đất).",
     voice_pump_override: null,
+    admin_pump_override: null,
     pump_command: pumpAfterAuto.cmd,
     pump_reason: pumpAfterAuto.reason,
   });
@@ -508,9 +570,10 @@ const postVoiceCommand = async (req: Request, res: Response): Promise<void> => {
 
   if (action.type === "pump_auto") {
     voicePumpOverride = null;
+    adminPumpOverride = null;
     let pumpAfterAuto: PumpCommandResult = { cmd: "OFF", reason: "no_iot" };
     if (pendingIot) {
-      pumpAfterAuto = decidePumpCommand(pendingIot.soilMoisture);
+      pumpAfterAuto = decidePumpCommand(pendingIot.soilMoisture, pendingIot.pumpStatus);
       pendingIot = { ...pendingIot, pumpStatus: pumpAfterAuto.cmd, updatedAt: Date.now() };
     }
     res.status(200).json({
@@ -520,6 +583,7 @@ const postVoiceCommand = async (req: Request, res: Response): Promise<void> => {
       pump_command: pumpAfterAuto.cmd,
       pump_reason: pumpAfterAuto.reason,
       voice_pump_override: null,
+      admin_pump_override: null,
       wit_configured: isWitConfigured(),
     });
     return;
@@ -618,6 +682,7 @@ const getHome = async (req: Request, res: Response): Promise<void> => {
     lastSensorTimestampIso,
     videoUrl: "/videos/final(1).mp4",
     streamRunning: Boolean(activeRealtimeJob),
+    pumpAdminKey: pumpAdminKeyFromEnv(),
   });
 };
 
@@ -739,7 +804,8 @@ const getSensorData = async (req: Request, res: Response): Promise<void> => {
     | "db_wide"
     | "default_off"
     | "demo_overlay"
-    | "voice_override" = "default_off";
+    | "voice_override"
+    | "admin_override" = "default_off";
 
   if (pendingIot) {
     latestPumpCommand = pendingIot.pumpStatus;
@@ -771,14 +837,16 @@ const getSensorData = async (req: Request, res: Response): Promise<void> => {
   if (pumpSource === "default_off" && pumpAfterDemo.cmd === "ON") {
     pumpSource = "demo_overlay";
   }
-  const finalPump = applyVoiceOverrideIfAny({ cmd: latestPumpCommand, reason: pumpSource });
+  const finalPump = applyAllPumpOverrides({ cmd: latestPumpCommand, reason: pumpSource });
   latestPumpCommand = finalPump.cmd;
-  if (voicePumpOverride !== null) pumpSource = "voice_override";
+  if (adminPumpOverride !== null) pumpSource = "admin_override";
+  else if (voicePumpOverride !== null) pumpSource = "voice_override";
 
   res.status(200).json({
     success: true,
     running: Boolean(activeRealtimeJob),
     voice_pump_override: voicePumpOverride,
+    admin_pump_override: adminPumpOverride,
     latestTimestamp: rows.length ? rows[rows.length - 1].createdAt : after || null,
     latestPumpCommand,
     pumpSource,
@@ -789,6 +857,7 @@ const getSensorData = async (req: Request, res: Response): Promise<void> => {
     latestTemperature,
     latestPh,
     threshold_min_moisture: ESP32_DRY_THRESHOLD_PERCENT,
+    threshold_max_moisture: ESP32_WET_THRESHOLD_PERCENT,
     ai_alert_threshold: PUMP_AI_TRIGGER_PERCENT,
     ai_advisory_only: true,
     server_time: new Date().toISOString(),
@@ -835,9 +904,9 @@ const postSensorData = async (req: Request, res: Response): Promise<void> => {
   }
   const { treeId, soilMoisture, temperature, ph } = parsed.data;
 
-  const soilPump = decidePumpCommand(soilMoisture);
+  const soilPump = decidePumpCommand(soilMoisture, pendingIot ? pendingIot.pumpStatus : "OFF");
   const aiForPump = await getLatestAiSnapshot({ useTrackingOverlay: activePythonStreamMode === "demo" });
-  const pump = applyVoiceOverrideIfAny(
+  const pump = applyAllPumpOverrides(
     pumpCommandForEsp32WithDemoPolicy(
       soilPump,
       { status: aiForPump.status, source: aiForPump.source },
@@ -870,6 +939,7 @@ const postSensorData = async (req: Request, res: Response): Promise<void> => {
     ai_source: ai.source,
     ai_advisory_only: true,
     threshold_min_moisture: ESP32_DRY_THRESHOLD_PERCENT,
+    threshold_max_moisture: ESP32_WET_THRESHOLD_PERCENT,
     ai_alert_threshold: PUMP_AI_TRIGGER_PERCENT,
     db_write: persisted ? "saved" : "throttled",
     db_interval_minutes: LIVE_DB_INTERVAL_MINUTES,
@@ -887,6 +957,7 @@ export default {
   startRealtimeVideoStream,
   stopRealtimeVideoStream,
   postIotPumpCommand,
+  postAdminIotPumpCommand,
   clearIotPumpOverride,
   postVoiceCommand,
   postRealtimeTrackingOverlay,

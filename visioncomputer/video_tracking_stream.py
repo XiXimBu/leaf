@@ -11,14 +11,12 @@ from collections import deque
 from datetime import datetime, timedelta
 import urllib.request
 from pathlib import Path
-from dotenv import load_dotenv
 
 import cv2
 import numpy as np
 import torch
 from ultralytics import YOLO
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Ngưỡng Healthy khớp health_status_vi (≥85 → Healthy).
 HEALTHY_PERCENT_MIN = 85.0

@@ -58,6 +58,40 @@ export function parseVoicePumpPostBody(raw: unknown): VoicePumpParseResult {
   return { ok: true, data: { command } };
 }
 
+export type AdminPumpValidated = { command: PumpStatus };
+
+export type AdminPumpParseResult =
+  | { ok: true; data: AdminPumpValidated }
+  | { ok: false; status: number; payload: { success: false; message: string } };
+
+/** POST /home/api/iot/pump/manual — điều khiển bơm từ UI admin (quyền cao nhất). */
+export function parseAdminPumpPostBody(raw: unknown): AdminPumpParseResult {
+  const body = bodyAsRecord(raw);
+  if (body.source !== "admin") {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        success: false,
+        message:
+          'Điều khiển admin: { "command": "ON"|"OFF", "source": "admin" } và header X-Pump-Admin-Key.',
+      },
+    };
+  }
+  const command = parsePumpStatus(body.command ?? body.pump_command);
+  if (!command) {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        success: false,
+        message: 'Body cần { "command": "ON" | "OFF", "source": "admin" }.',
+      },
+    };
+  }
+  return { ok: true, data: { command } };
+}
+
 function isValidAiVision(
   v: unknown
 ): v is { health_status: string; confidence_score: number; camera_image_url: string } {

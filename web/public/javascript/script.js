@@ -30,6 +30,13 @@
   const btnLive = document.getElementById("btnLiveMode");
   const btnStopAll = document.getElementById("btnStopAll");
   const btnPumpAuto = document.getElementById("btnPumpAuto");
+  const btnPumpOn = document.getElementById("btnPumpOn");
+  const btnPumpOff = document.getElementById("btnPumpOff");
+  const btnPumpManualAuto = document.getElementById("btnPumpManualAuto");
+  const adminPumpStatus = document.getElementById("adminPumpStatus");
+  const pumpAdminKey = importConfig.pumpAdminKey || "vision-admin";
+  const pumpDryThreshold = Number(importConfig.pumpDryThreshold) || 25;
+  const pumpWetThreshold = Number(importConfig.pumpWetThreshold) || 60;
   const btnVoiceMic = document.getElementById("btnVoiceMic");
   const voiceTextInput = document.getElementById("voiceTextInput");
   const voiceStatus = document.getElementById("voiceStatus");
@@ -722,6 +729,61 @@
     return h;
   };
 
+  const formatPumpReason = (reason) => {
+    if (!reason || typeof reason !== "string") return "";
+    if (reason === "no_soil_data") return "Không có dữ liệu đất";
+    if (reason === "manual_voice") return "Ghi đè giọng nói";
+    if (reason === "manual_admin") return "Ghi đè admin";
+    if (reason.startsWith("soil_dry<")) return `Đất khô — bật bơm (<${pumpDryThreshold}%)`;
+    if (reason.startsWith("pumping_")) return `Đang tưới — tắt khi đạt ≥${pumpWetThreshold}%`;
+    if (reason.includes("_idle")) {
+      return `Vùng ${pumpDryThreshold}–${pumpWetThreshold}% — chưa cần bơm (chỉ tắt khi ≥${pumpWetThreshold}% nếu đang bơm)`;
+    }
+    if (reason.startsWith("soil_wet>=")) return `Đất đủ ẩm (≥${pumpWetThreshold}%) — tắt bơm`;
+    return reason;
+  };
+
+  const setAdminPumpStatus = (text, ok = true) => {
+    if (!adminPumpStatus) return;
+    adminPumpStatus.textContent = text;
+    adminPumpStatus.className = ok
+      ? "text-[11px] text-secondary mt-2"
+      : "text-[11px] text-error mt-2";
+  };
+
+  const postAdminPumpCommand = async (command) => {
+    const url = importConfig.pumpManualEndpoint || "/home/api/iot/pump/manual";
+    setAdminPumpStatus(`Đang gửi lệnh ${command === "ON" ? "BẬT" : "TẮT"}…`, true);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Pump-Admin-Key": String(pumpAdminKey),
+        },
+        body: JSON.stringify({ command, source: "admin" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAdminPumpStatus(data.message || "Lệnh admin thất bại.", false);
+        if (iotEls.pumpHint) iotEls.pumpHint.textContent = data.message || "Lệnh admin thất bại.";
+        return false;
+      }
+      iotSnapshot.pump = command;
+      refreshIotMetricsPanel();
+      const msg =
+        data.message || (command === "ON" ? "Admin: đang tưới (ESP32)" : "Admin: đã tắt bơm");
+      setAdminPumpStatus(`✅ ${msg}`, true);
+      if (iotEls.pumpHint) iotEls.pumpHint.textContent = msg;
+      void fetchIotFromSensors();
+      return true;
+    } catch (_e) {
+      setAdminPumpStatus("Không gọi được API bơm admin.", false);
+      if (iotEls.pumpHint) iotEls.pumpHint.textContent = "Không gọi được API bơm admin.";
+      return false;
+    }
+  };
+
   const postPumpCommand = async (command) => {
     const url = importConfig.pumpCommandEndpoint || "/home/api/iot/pump";
     try {
@@ -758,16 +820,18 @@
       if (res.ok && data.success) {
         if (data.pump_command) iotSnapshot.pump = String(data.pump_command);
         refreshIotMetricsPanel();
+        const reasonText = formatPumpReason(data.pump_reason);
+        const autoLine = data.pump_command
+          ? `Tự động: bơm ${data.pump_command}${reasonText ? ` — ${reasonText}` : ""}`
+          : "Đã trả bơm về chế độ tự động.";
         if (voiceStatus) {
-          voiceStatus.textContent =
-            data.message || "Bơm: chế độ tự động (đất + AI).";
+          voiceStatus.textContent = data.message || "Bơm: chế độ tự động (25% → 60%).";
         }
         if (voiceLastCommand) {
-          voiceLastCommand.textContent = data.pump_command
-            ? `Tự động: bơm ${data.pump_command} (${data.pump_reason || "đất"})`
-            : "Đã trả bơm về chế độ tự động.";
+          voiceLastCommand.textContent = autoLine;
           voiceLastCommand.classList.remove("hidden");
         }
+        setAdminPumpStatus(`✅ ${autoLine}`, true);
       }
       void fetchIotFromSensors();
     } catch (_e) {}
@@ -912,6 +976,9 @@
   if (btnLive) btnLive.addEventListener("click", () => startMode("live"));
   if (btnStopAll) btnStopAll.addEventListener("click", () => void stopAll());
   if (btnPumpAuto) btnPumpAuto.addEventListener("click", () => void clearPumpOverride());
+  if (btnPumpOn) btnPumpOn.addEventListener("click", () => void postAdminPumpCommand("ON"));
+  if (btnPumpOff) btnPumpOff.addEventListener("click", () => void postAdminPumpCommand("OFF"));
+  if (btnPumpManualAuto) btnPumpManualAuto.addEventListener("click", () => void clearPumpOverride());
 
   document.querySelectorAll(".voice-chip").forEach((el) => {
     el.addEventListener("click", () => {

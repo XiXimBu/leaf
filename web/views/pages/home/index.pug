@@ -82,6 +82,26 @@ block main
               p#voiceStatus(class="text-[11px] text-on-surface-variant mt-1.5") Bấm mic (Chrome) hoặc nhập câu lệnh · server dùng Wit.ai nếu có token.
           p#voiceLastCommand(class="text-xs text-tertiary mt-2 hidden")
 
+    //- Admin — tầng cao nhất (ghi đè giọng nói + logic đất)
+    section#adminPumpPanel(class="base-card p-4 border-2 border-amber-500/50 bg-amber-500/5 shrink-0")
+      div(class="flex flex-wrap items-center justify-between gap-2 mb-3")
+        div(class="flex items-center gap-2")
+          span(class="material-symbols-outlined text-amber-400 text-[22px]") admin_panel_settings
+          h3(class="text-sm font-semibold text-on-surface") Điều khiển Admin — Máy bơm
+        span(class="text-[10px] uppercase tracking-wider font-bold text-amber-400 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30") Quyền cao nhất
+      p(class="text-xs text-on-surface-variant mb-3")
+        | Bật/tắt trực tiếp rơ-le ESP32. Thắng giọng nói và chế độ tự động (25% → 60%).
+        |  Bấm <strong class="text-amber-400 font-medium">Tự động</strong> để trả về logic đất.
+      div(class="flex flex-wrap gap-2")
+        button#btnPumpOn(type="button" class="text-sm font-semibold px-4 py-2 rounded-lg bg-secondary/20 border border-secondary/60 text-secondary hover:bg-secondary/30 transition-colors flex items-center gap-1.5")
+          span(class="material-symbols-outlined text-[18px]") water_pump
+          | Bật bơm
+        button#btnPumpOff(type="button" class="text-sm font-semibold px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant text-on-surface hover:bg-surface-container-highest transition-colors flex items-center gap-1.5")
+          span(class="material-symbols-outlined text-[18px]") water_drop
+          | Tắt bơm
+        button#btnPumpManualAuto(type="button" class="text-sm font-medium px-4 py-2 rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors") Tự động (25% → 60%)
+      p#adminPumpStatus(class="text-[11px] text-on-surface-variant mt-2") Sẵn sàng · khóa mặc định: vision-admin
+
     //- Bento metrics
     section(class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4")
       div(class="base-card p-4 flex flex-col justify-between min-h-[110px]")
@@ -117,12 +137,12 @@ block main
         span#iotPhValue(class="text-3xl font-semibold text-on-surface") --
         p(class="text-xs text-on-surface-variant mt-1") 0–14
 
-      div(class="bg-primary-container border border-primary/40 text-on-primary-container rounded-xl p-4 flex flex-col justify-between min-h-[110px] shadow-sm")
+      div#pumpControlCard(class="bg-primary-container border border-primary/40 text-on-primary-container rounded-xl p-4 flex flex-col justify-between min-h-[110px] shadow-sm")
         div(class="flex justify-between items-start mb-2")
           p(class="text-sm opacity-90") Máy bơm
           span(class="material-symbols-outlined opacity-90") water_pump
         span#iotPumpValue(class="text-3xl font-semibold block leading-none") --
-        p#iotPumpHint(class="text-xs opacity-80 mt-1") Chờ dữ liệu
+        p#iotPumpHint(class="text-xs opacity-80 mt-1") Chờ dữ liệu · tự động: bật &lt;25%, tắt ≥60%
 
     div(class="grid grid-cols-1 md:grid-cols-2 gap-4")
       div(class="base-card p-4 border-l-4 border-l-tertiary")
@@ -145,7 +165,11 @@ block script
       startEndpoint: "/home/api/stream/start",
       stopEndpoint: "/home/api/stream/stop",
       pumpCommandEndpoint: "/home/api/iot/pump",
+      pumpManualEndpoint: "/home/api/iot/pump/manual",
       pumpAutoEndpoint: "/home/api/iot/pump-override",
+      pumpAdminKey: !{JSON.stringify(pumpAdminKey || "vision-admin")},
+      pumpDryThreshold: 25,
+      pumpWetThreshold: 60,
       voiceCommandEndpoint: "/home/api/voice-command",
       liveEndpoint: "/home/api/sensors",
       trackingEndpoint: "/home/api/stream/overlay",

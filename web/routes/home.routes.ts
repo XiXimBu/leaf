@@ -13,6 +13,7 @@ router.post("/api/sensors", homeController.postSensorData);
 router.post("/api/stream/start", homeController.startRealtimeVideoStream);
 router.post("/api/stream/stop", homeController.stopRealtimeVideoStream);
 router.post("/api/iot/pump", homeController.postIotPumpCommand);
+router.post("/api/iot/pump/manual", homeController.postAdminIotPumpCommand);
 router.delete("/api/iot/pump-override", homeController.clearIotPumpOverride);
 router.post("/api/voice-command", homeController.postVoiceCommand);
 /** Overlay JSON từ Python (demo + realtime) — POST nhận frame, GET poll theo afterFrame. */
