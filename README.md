@@ -1,3 +1,5 @@
+![Poster](Poster.png)
+
 <div align="center">
   <h3>🎓 Faculty of Information Technology (DaiNam University)</h3>
   <h2>BLOCKCHAIN TECHNOLOGY</h2>
