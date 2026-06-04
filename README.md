@@ -13,8 +13,6 @@
 - [Phần 2 — Blockchain (Hyperledger Fabric)](#phần-2--blockchain-hyperledger-fabric)
 - [Tính bất biến & demo toàn vẹn dữ liệu](#tính-bất-biến--demo-toàn-vẹn-dữ-liệu)
 - [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Chạy nhanh (local)](#chạy-nhanh-local)
-- [Ảnh demo cho poster](#ảnh-demo-cho-poster)
 
 ---
 
@@ -248,65 +246,4 @@ VisionComputer/
     └── test-network/         # Fabric network (sau setup)
 ```
 
----
 
-## Chạy nhanh (local)
-
-### Phần 1 — Web + AI + MongoDB
-
-```bash
-# Terminal 1 — MongoDB đang chạy, cấu hình web/.env
-cd web
-npm install
-npm run dev
-# → http://localhost:3000
-```
-
-Python được spawn tự động khi bấm **Demo** / **Live** trên UI.
-
-### Phần 2 — Blockchain
-
-```bash
-# Terminal 2 — Fabric test-network + chaincode (theo hướng dẫn Fabric của nhóm)
-# Terminal 3 — Gateway
-cd blockchain/blockchain-leaf/application.gateway
-npm install
-npm run build   # hoặc npm start — tùy package.json
-# → http://localhost:8080  (+ UI public/)
-```
-
-Web backend gửi chain khi Gateway **đang chạy**; nếu tắt, MongoDB vẫn lưu bình thường (log lỗi `[Blockchain]`).
-
-| Dịch vụ | Cổng | URL |
-|---------|------|-----|
-| VisionComputer UI | 3000 | `http://localhost:3000` |
-| Blockchain Gateway + UI audit | 8080 | `http://localhost:8080` |
-
----
-
-## Ảnh demo cho poster
-
-Copy ảnh chụp màn hình vào **`docs/poster/`** với tên sau (hoặc sửa đường dẫn trong README):
-
-| File | Mục đích poster |
-|------|-----------------|
-| `kien-truc-tong-the.png` | Sơ đồ 2 phần (có thể vẽ từ slide) |
-| `giao-dien-dashboard.png` | UI chính VisionComputer |
-| `esp32-cam-bien.png` | Phần cứng IoT |
-| `yolo-tracking.png` | AI vision |
-| `blockchain-luong.png` | Sơ đồ / màn Gateway |
-| `blockchain-lich-su.png` | **Bất biến** — timeline `GetHistory` |
-| `blockchain-khop.png` | Toàn vẹn — kiểm tra **khớp** |
-| `blockchain-canh-bao.png` | Toàn vẹn — **cảnh báo** khi sửa DB |
-| `blockchain-hash.png` | SHA-256 (tuỳ chọn) |
-
-**Thứ tự trình bày poster gợi ý:**
-
-- Tiêu đề + Hình (kiến trúc)  
-- **Phần 1** — Hình + sơ đồ luồng ngắn (IoT + AI)  
-- **Phần 2** — Hình + giải thích Ledger / immutability  
-- Kết luận — MongoDB vận hành + Blockchain chứng minh  
-
----
-
-*Tài liệu poster: cập nhật khi đổi tên chaincode, cổng Gateway, hoặc contract API.*
