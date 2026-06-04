@@ -48,16 +48,24 @@
       <div id="histResult" class="result"></div>
     </section>
 
-    <!-- ====== Quick record (testing) ====== -->
+    <!-- ====== SHA-256 + history ====== -->
     <section class="card">
-      <h2>Ghi bản ghi mới (test) <span class="badge">DEV</span></h2>
+      <h2>Ghi &amp; kiểm tra hash SHA-256 <span class="badge">HASH</span></h2>
+      <p class="sub" style="margin:0 0 14px">SHA-256 + <code>payload_hash</code>, đối chiếu lịch sử blockchain.</p>
       <div>
         <label for="recPayload">Payload JSON (phải có tree_id)</label>
-        <textarea id="recPayload" placeholder='{"tree_id":"tree_001","height":120,"temp":28.5,"timestamp":"2026-05-25T10:00:00Z"}'></textarea>
+        <textarea id="recPayload" placeholder='{"tree_id":"TREE_001","timestamp":"2026-05-26T04:00:00.000Z","iot_data":{...},"ai_vision_data":{...},"action_taken":"..."}'></textarea>
+      </div>
+      <div style="margin-top:12px">
+        <label for="recHash">SHA-256</label>
+        <input id="recHash" type="text" placeholder="64 ký tự hex" readonly />
       </div>
       <div class="actions">
-        <button class="green" id="btnRecord">Ghi lên blockchain</button>
+        <button class="ghost" id="btnComputeHash">Tính SHA-256</button>
+        <button class="green" id="btnRecord">Ghi lên blockchain (kèm hash)</button>
+        <button id="btnVerifyHash">Đối chiếu hash ↔ lịch sử</button>
       </div>
+      <div id="hashHistoryBox" class="history"></div>
       <div id="recResult" class="result"></div>
     </section>
   </div>

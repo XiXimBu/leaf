@@ -12,6 +12,22 @@ function parseJson(text) {
   catch (e) { return [null, "JSON không hợp lệ: " + e.message]; }
 }
 
+// Parse JSON rồi chuẩn hoá: unwrap CouchDB {_all_docs}, Mongo Extended JSON, gỡ metadata.
+function parsePayload(text) {
+  const [raw, err] = parseJson(text);
+  if (err) return [null, err];
+  const payload = canon(raw);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return [null, "Payload phải là object JSON (hoặc bọc trong doc của CouchDB)"];
+  }
+  return [payload, null];
+}
+
+function resolveTreeId(payload, fallback) {
+  const id = payload.tree_id || payload.key || fallback || "";
+  return String(id).trim();
+}
+
 // Field metadata cần gỡ trước khi so sánh — không phải dữ liệu nghiệp vụ.
 //   _id, _rev, ~version   → CouchDB / Fabric state DB tự thêm
 //   __v, createdAt, updatedAt → Mongoose tự thêm
@@ -20,6 +36,7 @@ const STRIP_FIELDS = new Set([
   "_id", "_rev", "~version",
   "__v", "createdAt", "updatedAt",
   "docType", "id",
+  "payload_hash",
 ]);
 
 // Chuẩn hoá object về schema gốc + sort key → dùng cho diff & deepEqual.
@@ -78,14 +95,64 @@ function diffKeys(a, b) {
   return diffs;
 }
 
-async function getLatest(id) {
+async function fetchHistory(id) {
   const res = await fetch(API + "/api/blockchain/history/" + encodeURIComponent(id));
   if (!res.ok) throw new Error("HTTP " + res.status);
   const arr = await res.json();
   if (!Array.isArray(arr) || arr.length === 0) {
     throw new Error("Chưa có bản ghi nào trên blockchain cho id này");
   }
+  return arr;
+}
+
+async function getLatest(id) {
+  const arr = await fetchHistory(id);
   return arr[arr.length - 1];
+}
+
+function normalizedPayload(obj) {
+  return canon(obj);
+}
+
+function canonicalJson(obj) {
+  return JSON.stringify(normalizedPayload(obj));
+}
+
+async function sha256Hex(text) {
+  const buf = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function hashPayload(obj) {
+  return sha256Hex(canonicalJson(obj));
+}
+
+function formatRecordTime(data) {
+  const t = data && data.timestamp;
+  if (!t) return "-";
+  if (typeof t === "string") return t;
+  if (t && typeof t === "object" && "$date" in t) return String(t.$date);
+  return String(t);
+}
+
+function formatBlockTs(bt) {
+  if (!bt || typeof bt !== "object") return "-";
+  let s = bt.seconds;
+  if (s && typeof s === "object" && "low" in s) {
+    s = Number(s.high || 0) * 4294967296 + (Number(s.low) >>> 0);
+  } else if (typeof s === "string") {
+    s = Number(s);
+  }
+  const ms = (Number(s) || 0) * 1000 + Math.floor(Number(bt.nanos || 0) / 1e6);
+  if (!ms) return "-";
+  try {
+    return new Date(ms).toISOString();
+  } catch {
+    return String(ms);
+  }
 }
 
 // ===== Audio siren via Web Audio API =====
@@ -142,13 +209,13 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAlarm
 
 // ===== Check integrity =====
 $("btnCheck").addEventListener("click", async () => {
-  const id = $("checkId").value.trim();
   const raw = $("dbData").value.trim();
   const out = $("checkResult");
-  if (!id) return showResult(out, "err", "Hãy nhập tree_id");
   if (!raw) return showResult(out, "err", "Hãy dán dữ liệu database");
-  const [dbObj, err] = parseJson(raw);
+  const [dbObj, err] = parsePayload(raw);
   if (err) return showResult(out, "err", err);
+  const id = resolveTreeId(dbObj, $("checkId").value.trim());
+  if (!id) return showResult(out, "err", "Hãy nhập tree_id hoặc dán JSON có tree_id (trong doc CouchDB cũng được)");
 
   showResult(out, "warn", "Đang truy vấn blockchain...");
   try {
@@ -222,24 +289,141 @@ $("btnHistory").addEventListener("click", async () => {
   }
 });
 
-// ===== Record =====
+// ===== SHA-256 + record + history verify =====
+$("btnComputeHash").addEventListener("click", async () => {
+  const raw = $("recPayload").value.trim();
+  const out = $("recResult");
+  if (!raw) return showResult(out, "err", "Hãy nhập payload");
+  const [obj, err] = parsePayload(raw);
+  if (err) return showResult(out, "err", err);
+  try {
+    const norm = normalizedPayload(obj);
+    const canonStr = JSON.stringify(norm);
+    const hash = await sha256Hex(canonStr);
+    $("recHash").value = hash;
+    showResult(out, "ok", "SHA-256:\n" + hash + "\n\nJSON:\n" + canonStr);
+  } catch (e) {
+    showResult(out, "err", "Lỗi tính hash: " + e.message);
+  }
+});
+
 $("btnRecord").addEventListener("click", async () => {
   const raw = $("recPayload").value.trim();
   const out = $("recResult");
   if (!raw) return showResult(out, "err", "Hãy nhập payload");
-  const [obj, err] = parseJson(raw);
+  const [obj, err] = parsePayload(raw);
   if (err) return showResult(out, "err", err);
-  if (!obj.tree_id) return showResult(out, "err", "Payload thiếu trường tree_id");
-  showResult(out, "warn", "Đang gửi lên blockchain...");
+  const treeId = resolveTreeId(obj);
+  if (!treeId) return showResult(out, "err", "Không tìm thấy tree_id (có thể nằm trong doc CouchDB — dán nguyên JSON _all_docs)");
+  showResult(out, "warn", "Đang tính hash và gửi lên blockchain...");
   try {
+    const norm = normalizedPayload(obj);
+    const canonStr = JSON.stringify(norm);
+    const hash = await sha256Hex(canonStr);
+    $("recHash").value = hash;
+    const toWrite = { ...norm, tree_id: treeId, payload_hash: hash };
     const res = await fetch(API + "/api/blockchain/record", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(obj)
+      body: JSON.stringify(toWrite)
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || ("HTTP " + res.status));
-    showResult(out, "ok", "✅ Đã ghi: " + (body.message || "OK"));
+    showResult(out, "ok",
+      "✅ Đã ghi lên blockchain.\n" +
+      "payload_hash: " + hash + "\n" +
+      (body.message || ""));
+  } catch (e) {
+    showResult(out, "err", "Lỗi: " + e.message);
+  }
+});
+
+$("btnVerifyHash").addEventListener("click", async () => {
+  const raw = $("recPayload").value.trim();
+  const out = $("recResult");
+  const box = $("hashHistoryBox");
+  box.classList.remove("show");
+  box.innerHTML = "";
+
+  if (!raw) return showResult(out, "err", "Hãy nhập payload JSON");
+  const [obj, err] = parsePayload(raw);
+  if (err) return showResult(out, "err", err);
+  const treeId = resolveTreeId(obj);
+  if (!treeId) return showResult(out, "err", "Không tìm thấy tree_id (dán nguyên JSON CouchDB { key, doc } cũng được)");
+
+  showResult(out, "warn", "Đang tải lịch sử và đối chiếu hash...");
+  try {
+    const normInput = normalizedPayload(obj);
+    const canonInputStr = JSON.stringify(normInput);
+    const userHash = await sha256Hex(canonInputStr);
+    $("recHash").value = userHash;
+
+    const history = await fetchHistory(treeId);
+    const rows = [];
+    const matchIndexes = [];
+
+    for (let i = 0; i < history.length; i++) {
+      const item = history[i];
+      const data = item.data || {};
+      const normChain = normalizedPayload(data);
+      const canonChainStr = JSON.stringify(normChain);
+      const computed = await sha256Hex(canonChainStr);
+      const stored = (data.payload_hash || "").toLowerCase();
+      const matchUser = computed === userHash;
+      if (matchUser) matchIndexes.push(i);
+
+      rows.push({
+        index: i + 1,
+        recordTime: formatRecordTime(data),
+        blockTime: formatBlockTs(item.block_timestamp),
+        txid: item.txid || "-",
+        computed,
+        canonStr: canonChainStr,
+        stored,
+        matchUser,
+        isLatest: i === history.length - 1,
+      });
+    }
+
+    const latestIdx = history.length - 1;
+
+    box.innerHTML = rows.map(r => {
+      const flags = [];
+      if (r.isLatest) flags.push("MỚI NHẤT");
+      if (r.matchUser) flags.push("KHỚP");
+      const badge = flags.length ? " · " + flags.join(" · ") : "";
+      const storedLine = r.stored
+        ? `<div class="meta">hash trên chain (payload_hash): <code class="hash-full">${escapeHtml(r.stored)}</code></div>`
+        : "";
+      const canonBlock = r.matchUser
+        ? `<pre class="canon-pre">${escapeHtml(r.canonStr)}</pre>`
+        : "";
+      return `
+        <div class="hist-item ${r.matchUser ? "hash-match" : ""}">
+          <div class="meta">#${r.index}${badge} · record: ${escapeHtml(r.recordTime)} · block: ${escapeHtml(r.blockTime)}</div>
+          <div class="meta">txid: ${escapeHtml(r.txid)}</div>
+          <code class="hash-full">${escapeHtml(r.computed)}</code>
+          ${storedLine}
+          ${canonBlock}
+        </div>`;
+    }).join("");
+    box.classList.add("show");
+
+    let msg = "Hash:\n" + userHash + "\n\n";
+    msg += "JSON:\n" + canonInputStr + "\n\n";
+    if (matchIndexes.length === 0) {
+      msg += "❌ KHÔNG khớp bất kỳ bản ghi nào trên blockchain.\n";
+      msg += "→ Dữ liệu có thể đã bị sửa ngoài chain (Mongo/CouchDB) hoặc chưa từng được ghi.";
+      showResult(out, "err", msg);
+      triggerAlarm();
+      return;
+    }
+
+    const idxList = matchIndexes.map(i => "#" + (i + 1)).join(", ");
+    const times = matchIndexes.map(i => formatRecordTime(history[i].data)).join(", ");
+    msg += "✅ Hash hợp lệ — khớp blockchain tại " + idxList + ".\n";
+    msg += "Thời điểm ghi (record): " + times;
+    showResult(out, "ok", msg);
   } catch (e) {
     showResult(out, "err", "Lỗi: " + e.message);
   }

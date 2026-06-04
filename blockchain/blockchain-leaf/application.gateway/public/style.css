@@ -158,6 +158,39 @@ button.green:hover { background: #16a34a; }
   overflow: auto;
   color: #cbd5e1;
 }
+.hist-item.hash-match {
+  border-left-color: #22c55e;
+  background: #052e16;
+}
+.hist-item.hash-match .meta { color: #86efac; }
+.hist-item code {
+  font-size: 11px;
+  color: #cbd5e1;
+}
+#recHash {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+}
+.hash-full {
+  display: block;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  word-break: break-all;
+  color: #a5f3fc;
+  margin: 4px 0 8px;
+  line-height: 1.45;
+}
+.canon-pre {
+  margin: 8px 0 0;
+  padding: 10px;
+  font-size: 11px;
+  background: #0f172a;
+  border-radius: 6px;
+  overflow: auto;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* ===== ALARM OVERLAY ===== */
 .alarm {

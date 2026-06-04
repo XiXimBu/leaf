@@ -63,6 +63,9 @@ async function startExpressServer(contract: Contract, gateway: Gateway, client: 
     app.use(cors());
     app.use(express.json());
 
+    const publicDir = path.resolve(appGatewayRoot, 'public');
+    app.use(express.static(publicDir));
+
     const port = process.env.PORT || 8080;
 
     app.post('/api/blockchain/record', async (req, res) => {
@@ -92,7 +95,16 @@ async function startExpressServer(contract: Contract, gateway: Gateway, client: 
             console.log(`Evaluating GetHistory for id: ${id}`);
             const resultBytes = await contract.evaluateTransaction('GetHistory', id);
             const resultJson = Buffer.from(resultBytes).toString('utf8');
-            res.status(200).json(JSON.parse(resultJson));
+            const arr = JSON.parse(resultJson);
+
+            // getHistoryForKey trên Fabric KHÔNG đảm bảo thứ tự (tuỳ version trả newest- hoặc oldest-first).
+            // Sort tăng dần theo block_timestamp (thời gian commit thật trên chain) để client
+            // luôn lấy được bản mới nhất ở cuối mảng một cách ổn định.
+            if (Array.isArray(arr)) {
+                arr.sort((a, b) => blockTsToMs(a?.block_timestamp) - blockTsToMs(b?.block_timestamp));
+            }
+
+            res.status(200).json(arr);
         } catch (error) {
             console.error('Error in /api/blockchain/history:', error);
             res.status(500).json({ error: String(error) });
@@ -147,6 +159,26 @@ async function getFirstDirFileName(dirPath: string): Promise<string> {
 
 function envOrDefault(key: string, defaultValue: string): string {
     return process.env[key] || defaultValue;
+}
+
+// google.protobuf.Timestamp đến từ chaincode có thể ở nhiều hình dạng sau khi JSON.stringify:
+//   { seconds: "1748180400", nanos: 0 }              (Long.toJSON -> string)
+//   { seconds: 1748180400,   nanos: 0 }              (number)
+//   { seconds: { low, high, unsigned }, nanos: 0 }   (Long thô)
+// Hàm này quy về số ms-since-epoch để sort.
+function blockTsToMs(bt: any): number {
+    if (!bt || typeof bt !== 'object') return 0;
+    let s: any = bt.seconds;
+    if (s && typeof s === 'object') {
+        if (typeof s.toNumber === 'function') s = s.toNumber();
+        else if ('low' in s) s = Number(s.high || 0) * 4294967296 + (Number(s.low) >>> 0);
+        else s = Number(s.toString?.() ?? 0);
+    } else if (typeof s === 'string') {
+        s = Number(s);
+    }
+    const secs = Number(s) || 0;
+    const ns = Number(bt.nanos ?? 0);
+    return secs * 1000 + Math.floor(ns / 1e6);
 }
 
 function displayInputParameters(): void {

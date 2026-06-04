@@ -6,19 +6,15 @@ export class AgriContract extends Contract {
 
     @Transaction()
     public async CreateRecord(ctx: Context, id: string, recordJsonString: string): Promise<void> {
-        // 1. Parse JSON từ client gửi lên
         let record;
         try {
-            record = JSON.parse(recordJsonString);// text sang json
+            record = JSON.parse(recordJsonString);
         } catch (err) {
             throw new Error(`Dữ liệu không phải là JSON hợp lệ: ${err}`);
         }
 
-        // 2. Thêm docType để dễ truy vấn sau này
-        record.docType = 'tree_snapshot';
-        record.id = id;
-
-
+        // Lưu nguyên payload — không thêm metadata. Schema khớp với MongoDB bên ngoài.
+        // Key của state DB chính là `id` (= tree_id) do gateway truyền vào.
         await ctx.stub.putState(id, Buffer.from(JSON.stringify(record)));
         console.log(`Đã lưu thành công dữ liệu cho cây: ${id}`);
     }
