@@ -12,7 +12,7 @@
 
 # VisionComputer
 
-**Hệ thống giám sát cây trồng thông minh** kết hợp **cảm biến IoT (ESP32)**, **AI vision (YOLO)**, **backend Node.js + MongoDB**, và **sổ cái phân tán Hyperledger Fabric** để lưu vết dữ liệu **bất biến**.
+**VisionComputer** là một giải pháp giám sát và quản lý cây trồng thông minh tự động hóa, ứng dụng công nghệ IoT (ESP32) để theo dõi thông số đất và điều khiển bơm, kết hợp AI Vision (YOLO) phân tích sức khỏe lá qua camera theo thời gian thực. Toàn bộ quá trình vận hành được quản lý trên nền tảng web trực quan (Node.js + MongoDB), cho phép người dùng giám sát và điều khiển dễ dàng, bao gồm cả tính năng ra lệnh bằng giọng nói. Nhằm đảm bảo tính minh bạch, toàn vẹn và chống gian lận dữ liệu, lịch sử phát triển của cây trồng liên tục được đồng bộ lên mạng lưới chuỗi khối Hyperledger Fabric. Hệ thống tạo ra một quy trình khép kín từ khâu thu thập thông tin, tự động ra quyết định tưới tiêu, đến lưu trữ bằng chứng lịch sử bất biến phục vụ truy xuất nguồn gốc.
 
 ## Tổng quan hệ thống
 
@@ -216,6 +216,28 @@ Mở **`blockchain/blockchain-leaf/application.gateway/public/index.html`** (qua
 ![SHA-256 Hash](docs/poster/blockchain-hash.png)
 
 
+
+---
+
+## Hướng phát triển
+
+Để hoàn thiện và đưa **VisionComputer** vào ứng dụng thực tế trên quy mô lớn, hệ thống có tiềm năng mở rộng theo các hướng sau:
+
+1. **Mở rộng năng lực AI (Edge AI & Đa dạng bệnh lý):**
+   - Huấn luyện mô hình YOLO nhận diện chi tiết từng loại bệnh cụ thể (nấm, sâu bọ, thiếu hụt dinh dưỡng) thay vì chỉ phân đoạn và đánh giá sức khỏe tổng thể.
+   - Tối ưu hóa mô hình AI để triển khai trực tiếp lên các thiết bị Edge (như NVIDIA Jetson Nano, Raspberry Pi) nhằm giảm độ trễ và xử lý tại biên.
+
+2. **Nâng cấp hệ sinh thái IoT & Tự động hóa:**
+   - Tích hợp thêm cảm biến (nhiệt độ, độ ẩm không khí, ánh sáng, chỉ số NPK) và thiết bị châm phân tự động để tạo quy trình canh tác khép kín.
+   - Chuyển đổi kiến trúc từ quản lý cây đơn lẻ sang mạng lưới nhiều node cảm biến (Mesh Network) phục vụ diện tích trang trại rộng lớn.
+
+3. **Tối ưu Blockchain & Truy xuất nguồn gốc:**
+   - Tích hợp hệ thống lưu trữ phi tập trung (IPFS) để lưu trữ vĩnh viễn các hình ảnh minh chứng từ camera, kết hợp ghi băm (hash) lên Fabric nhằm đảm bảo độ tin cậy tuyệt đối.
+   - Phát triển tính năng truy xuất nguồn gốc (Farm-to-Fork) qua mã QR, giúp người tiêu dùng có thể quét và xem toàn bộ lịch sử sinh trưởng bất biến của nông sản.
+
+4. **Trải nghiệm người dùng & AI Assistant:**
+   - Nâng cấp tính năng ra lệnh bằng giọng nói bằng cách tích hợp mô hình ngôn ngữ lớn (LLM), giúp trợ lý ảo có khả năng tư vấn nông nghiệp và hỏi đáp ngữ cảnh tự nhiên.
+   - Phát triển ứng dụng di động (Mobile App) đa nền tảng để theo dõi, quản lý trang trại từ xa và nhận thông báo đẩy (push notifications).
 
 ---
 
