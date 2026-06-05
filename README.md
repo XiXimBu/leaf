@@ -27,7 +27,7 @@ VisionComputer theo dõi **một cây (tree_id)** qua hai luồng song song:
 
 ```text
                     ┌─────────────────────────────────────────────────────────┐
-                    │                    PHẦN 1 — VẬN HÀNH                   │
+                    │                    PHẦN 1 — VẬN HÀNH                    │
                     └─────────────────────────────────────────────────────────┘
 
    ESP32                    Express (web/)                 Python (cv.engine/)
@@ -40,7 +40,7 @@ VisionComputer theo dõi **một cây (tree_id)** qua hai luồng song song:
                           Demo / Live · Admin bơm · Giọng nói
 
                     ┌─────────────────────────────────────────────────────────┐
-                    │              PHẦN 2 — BLOCKCHAIN (AUDIT)               │
+                    │              PHẦN 2 — BLOCKCHAIN (AUDIT)                │
                     └─────────────────────────────────────────────────────────┘
 
    MongoDB (có thể sửa)  ──POST snapshot──►  Gateway :8080  ──gRPC──►  Fabric Peer

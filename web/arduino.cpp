@@ -1,23 +1,3 @@
-/**
- * VisionComputer — ESP32 Plant IoT Node
- * --------------------------------------
- * Đồng bộ với backend Express ở web/ (route /api/sensors).
- *
- * Vai trò:
- *   1. Đọc độ ẩm đất (analog) + pH (ADC). Nhiệt độ gửi lên server: hằng REPORT_TEMP_C (không cắm DHT).
- *   2. POST telemetry tối giản → backend ghép với AI camera (Python POST /home/api/realtime, không gửi trong body ESP32)
- *      và trả { pump_command: "ON"|"OFF" } theo độ ẩm đất; health_* trong response chỉ để hiển thị.
- *   3. Đóng/mở Rơ-le máy bơm (Active LOW). Nếu mất WiFi/server → fail-safe local theo độ ẩm.
- *
- * Hợp đồng API (khớp web/controllers/home.controller.ts):
- *   POST {SERVER_HOST}/api/sensors (hoặc /home/api/sensors)
- *     Request : { "tree_id":"TREE_001", "soil_moisture":<0..100>, "temperature":<°C> }
- *     Response: { "success":true, "pump_command":"ON|OFF", "health_status":"Healthy|Héo nhẹ|Héo",
- *                 "health_percent":<0..100>, "ai_source":"overlay|db|fallback", ... }
- *
- * Phụ thuộc thư viện (Library Manager):
- *   - "ArduinoJson"  by Benoit Blanchon
- */
 
  #include <WiFi.h>
  #include <HTTPClient.h>
@@ -27,49 +7,28 @@
  const char* WIFI_PASSWORD = "@bang1961";
  
  // =================== CẤU HÌNH SERVER =================
- // IP máy chạy `npm run dev` (cổng mặc định 3000). Đổi theo LAN của bạn.
- // Cùng mạng WiFi với ESP32. Có thể test bằng trình duyệt: http://<IP>:3000/home
- // Trên server: POST từ ESP32 → log [ESP32] ip = 192.168.x.x. GET từ Chrome mở localhost → ip 127.0.0.1 (::1) là UI poll, không phải ESP.
- // pumpSource "ram" chỉ khi ESP đã POST vào đúng tiến trình Node đang chạy (cùng máy, cùng cổng).
- const char* SERVER_HOST     = "http://192.168.1.8:3000";
- const char* SENSOR_PATH     = "/home/api/sensors";       // POST telemetry, nhận lệnh bơm (hoặc "/home/api/sensors")
- const char* LIVE_QUERY_PATH = "/home/api/sensors";       // GET ?after=… (cùng API GET sensor)
+ const char* SERVER_HOST     = "http://192.168.1.2:3000";
+ const char* SENSOR_PATH     = "/home/api/sensors";       
+ const char* LIVE_QUERY_PATH = "/home/api/sensors";       
  const char* TREE_ID         = "TREE_001";
  
- // =================== CẤU HÌNH PHẦN CỨNG ==============
 // =================== CẤU HÌNH PHẦN CỨNG ==============
-#define SOIL_PIN   32          // ADC1 — Cảm biến độ ẩm đất [cite: 56]
-#define RELAY_PIN  4           // Digital out — Rơ-le bơm (Active LOW) [cite: 55]
-#define PH_PIN     33          // Chân nối với lỗ pO của mạch pH [cite: 57]
+#define SOIL_PIN   32          
+#define RELAY_PIN  4           
+#define PH_PIN     33          
 
-/** Nhiệt độ gửi trong JSON (không có DHT — backend vẫn nhận trường temperature). */
+
 const float REPORT_TEMP_C = 28.0f;
  // =================== HIỆU CHUẨN CẢM BIẾN pH ========
-// 2 thông số hiệu chuẩn thực tế (dung dịch chuẩn):
-//   - Ly xanh pH 6.86 đo được 2.80 V
-//   - Ly đỏ  pH 4.01 đo được 3.28 V
-float voltage_pH6_86 = 2.80;   // Vôn ở dung dịch pH 6.86
-float voltage_pH4_01 = 3.28;   // Vôn ở dung dịch pH 4.01
-// Hệ số góc đường thẳng (slope): ΔpH / ΔV
-float phStep = (6.86 - 4.01) / (voltage_pH6_86 - voltage_pH4_01);  // ≈ −5.9375
+float voltage_pH6_86 = 2.80;  
+float voltage_pH4_01 = 3.28;  
+float phStep = (6.86 - 4.01) / (voltage_pH6_86 - voltage_pH4_01); 
  
  // =================== HÀNH VI =========================
- // Live mode: 5s/lần là vừa (12 record/phút) — đủ phản ứng nhanh nhưng không spam DB.
  const unsigned long SAMPLE_INTERVAL_MS = 5000UL;
- 
- // --- Độ ẩm đất (ADC 0..4095, GPIO34 = ADC1) ---
- // Bắt buộc hiệu chỉnh 2 điểm từ Serial (xem [SENSOR] raw=...):
- //   SOIL_RAW_AT_DRY  = analogRead khi cảm biến khô / trên không khí.
- //   SOIL_RAW_AT_WET  = analogRead khi nhúng nước / đất bão hòa.
- // Hai số có thể DRY>WET hoặc DRY<WET — map() một dòng vẫn ra 0%=khô, 100%=ướt.
- // Mặc định dưới hay gặp mạch "khô ADC cao, ướt ADC thấp"; nếu nhúng nước mà soil vẫn thấp → đổi
- // SOIL_RAW_AT_WET thành raw thật lúc ngập nước (thường raw cao hơn không khí → DRY<WET).
  const int SOIL_RAW_AT_DRY = 3100;
  const int SOIL_RAW_AT_WET = 1300;
- // Nếu đo được % đúng nhưng server/demo vẫn bật bơm: tắt cứng rơ-le khi đất đọc đủ ướt (an toàn phần cứng).
  const int SOIL_LOCAL_FORCE_PUMP_OFF_FROM = 72;
- 
- // Local fail-safe: mất mạng & đất quá khô vẫn chủ động bơm (giống logic backend).
  const int  LOCAL_DRY_PERCENT = 20;
  const unsigned long HTTP_TIMEOUT_MS = 4000UL;
  const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000UL;
